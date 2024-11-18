@@ -20,6 +20,7 @@ jobs:
         Test triggered by nightly run.
         
         ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      checkout-fetch-depth: 0
     secrets:
       bot-name: ${{ secrets.BOT_NAME }}
       bot-token: ${{ secrets.BOT_TOKEN }}
