@@ -209,7 +209,7 @@ def main():
     os.chdir(args.charts_dir)
     # (JOSE) Marked for removal. This function (and call locations)  modify
     # version_check.yml which will be removed.
-    # update_workflow() 
+    # update_workflow()
 
     organization = args.target_repository.split("/")[0]
     charts_repository = f"{organization}{gitutils.CHARTS_REPO}"
