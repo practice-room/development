@@ -10,6 +10,7 @@ jobs:
     uses: ./.github/workflows/check-contributor.yml
     with:
       user: ${{ github.event.pull_request.user.login }}
+      fail-workflow-if-not: true
   
   determine-workflow-conditions:
     name: Determine workflow conditions
@@ -241,18 +242,8 @@ jobs:
       release-tag: ${{ steps.check_merge_and_release.outputs.release_tag }}
       release-body: ${{ steps.check_merge_and_release.outputs.release_body }}
     runs-on: ubuntu-22.04
-    # The below 'if:' condition is a overly specific to avoid having to specify
-    # an always() condition which can have some adverse effects. The goal is to
-    # have this job run regardless of whether sync-repos is skipped. Empty
-    # inputs that we'll get from sync-repos being skipped are handled in the
-    # script.
-    #
-    # TODO: This is written to handle both release PRs submitted by maintainers,
-    # and Auto Release PRs executed by CI. It makes sense to separate the
-    # handling of those two things, but requires a heavier lift, as several jobs
-    # in this workflow account for both cases. It's worth separating that at a
-    # later date.
     if: |
+      !cancelled() &&
       needs.determine-workflow-conditions.result == 'success' &&
       ( needs.sync-repos.result == 'success' || needs.sync-repos.result == 'skipped' )
     steps:
