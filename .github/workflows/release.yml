@@ -10,6 +10,7 @@ jobs:
     uses: ./.github/workflows/check-contributor.yml
     with:
       user: ${{ github.event.pull_request.user.login }}
+      fail-workflow-if-not: true
   
   determine-workflow-conditions:
     name: Determine workflow conditions
@@ -88,7 +89,8 @@ jobs:
       - name: Check if PR created as part of release process
         id: check_created_release_pr
         working-directory: ./pr-branch
-        if: ${{ steps.check_only_version_in_PR_and_authorized.outputs.PR_includes_release_only != 'true' }}
+        if: |
+          steps.check_only_version_in_PR_and_authorized.outputs.PR_includes_release_only != 'true'
         env:
           BOT_NAME: ${{ secrets.BOT_NAME }}
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
@@ -127,7 +129,8 @@ jobs:
     # already asserts this.
     needs:
     - determine-workflow-conditions
-    if: needs.determine-workflow-conditions.outputs.create-pull-requests == 'true'
+    if: |
+      needs.determine-workflow-conditions.outputs.create-pull-requests == 'true'
     uses: ./.github/workflows/behave.yml
     with:
       tags: full
@@ -199,7 +202,6 @@ jobs:
 
       - name: Check if version updated
         id: check_version_updated
-        # if: needs.determine-workflow-conditions.outputs.create-pull-requests == 'true'
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         # outputs:
@@ -211,7 +213,8 @@ jobs:
 
       - name: Sync the repositories
         id: sync_repositories
-        if: steps.check_version_updated.outputs.release_updated == 'true'
+        if: |
+          steps.check_version_updated.outputs.release_updated == 'true'
         env:
           BOT_NAME: ${{ secrets.BOT_NAME }}
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
@@ -241,18 +244,9 @@ jobs:
       release-tag: ${{ steps.check_merge_and_release.outputs.release_tag }}
       release-body: ${{ steps.check_merge_and_release.outputs.release_body }}
     runs-on: ubuntu-22.04
-    # The below 'if:' condition is a overly specific to avoid having to specify
-    # an always() condition which can have some adverse effects. The goal is to
-    # have this job run regardless of whether sync-repos is skipped. Empty
-    # inputs that we'll get from sync-repos being skipped are handled in the
-    # script.
-    #
-    # TODO: This is written to handle both release PRs submitted by maintainers,
-    # and Auto Release PRs executed by CI. It makes sense to separate the
-    # handling of those two things, but requires a heavier lift, as several jobs
-    # in this workflow account for both cases. It's worth separating that at a
-    # later date.
+    # cancelled() required because jobs this workflow depends on can skip.
     if: |
+      !cancelled() &&
       needs.determine-workflow-conditions.result == 'success' &&
       ( needs.sync-repos.result == 'success' || needs.sync-repos.result == 'skipped' )
     steps:
@@ -298,7 +292,9 @@ jobs:
     name: Approve, merge, release
     needs: [determine-merge-and-release-conditions]
     runs-on: ubuntu-22.04
+    # cancelled() required because jobs this workflow depends on can skip.
     if: |
+      !cancelled() &&
       needs.determine-merge-and-release-conditions.outputs.should-merge == 'true' ||
       needs.determine-merge-and-release-conditions.outputs.release-tag != ''
     steps:
@@ -322,14 +318,16 @@ jobs:
 
     - name: Approve PR
       id: approve_pr
-      if: needs.determine-merge-and-release-conditions.outputs.should-merge == 'true'
+      if: |
+        needs.determine-merge-and-release-conditions.outputs.should-merge == 'true'
       uses: hmarr/auto-approve-action@v4
       with:
         github-token:  ${{ secrets.GITHUB_TOKEN }}
 
     - name: Merge PR
       id: merge_pr
-      if: needs.determine-merge-and-release-conditions.outputs.should-merge == 'true'
+      if: |
+        needs.determine-merge-and-release-conditions.outputs.should-merge == 'true'
       uses: pascalgn/automerge-action@v0.16.2
       env:
         GITHUB_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
@@ -337,7 +335,8 @@ jobs:
         MERGE_LABELS: ""
 
     - name: Check for PR merge
-      if: needs.determine-merge-and-release-conditions.outputs.should-merge == 'true'
+      if: |
+        needs.determine-merge-and-release-conditions.outputs.should-merge == 'true'
       env:
         BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
       run: |
@@ -345,7 +344,8 @@ jobs:
 
     - name: Create the the release
       id: create_release
-      if: needs.determine-merge-and-release-conditions.outputs.release-tag  != ''
+      if: |
+        needs.determine-merge-and-release-conditions.outputs.release-tag  != ''
       uses: softprops/action-gh-release@v2
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
